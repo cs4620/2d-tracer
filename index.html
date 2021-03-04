@@ -119,16 +119,80 @@
   <script src='https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js'></script>
   <script src="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.js"></script>
   <script>
+    let pixelLocations, rays;
+
+    class Vector2 {
+      constructor(x, y) { this.x = x; this.y = y }
+      x = 0; y = 0
+      length = () => Math.sqrt(this.x ** 2 + this.y ** 2)
+      normalize = () => new Vector2(this.x / this.length(), this.y / this.length())
+      static scale = (vector, scale) => new Vector2(vector.x * scale, vector.y * scale)
+      static add = (one, two) => new Vector2(one.x + two.x, one.y + two.y)
+      static subtract = (one, two) => this.add(one, this.scale(two, -1))
+    };
+
+    class Ray {
+      one; two
+      constructor(one, two) { this.one = one; this.two = two }
+      difference = () => Vector2.subtract(this.two, this.one)
+      direction = () => this.difference().normalize()
+      angle = () => Math.atan2(this.difference().y, this.difference().x)
+      static fromAngle = (one, angle) => new Ray(one, new Vector2(one.x + Math.cos(angle), one.y + Math.sin(angle)))
+
+    }
+
     function customUpdate() {
+      pixelLocations = [];
+      rays = [];
+      let c = app.camera;
+      let adjacentLength = length(+c.x1, +c.y1, +c.x2, +c.y2)
+      let fov = (+c.fov * Math.PI / 180);
+      let halfViewingPlane = Math.tan(fov) * adjacentLength;
+      let fullLength = halfViewingPlane * 2
 
-
+      let delta = fullLength / (+app.camera.pixels + 1)
+      for (let i = 0; i < app.camera.pixels; i++) {
+        let center = new Vector2(c.x2, c.y2);
+        let vector = new Vector2(c.x2 - c.x1, c.y2 - c.y1).normalize()
+        let orthogonal = new Vector2(vector.y, -vector.x)
+        let top = Vector2.add(center, Vector2.scale(orthogonal, halfViewingPlane));
+        let point = Vector2.add(top, Vector2.scale(orthogonal, -1 * delta * (i + 1)))
+        pixelLocations.push(point);
+        let ray = new Ray(new Vector2(c.x1, c.y1), point);
+        rays.push(ray);
+      }
     }
 
     function length(x1, y1, x2, y2) {
-      return Math.sqrt((x1 - x2) ** 2, (y1 - y2) ** 2)
+      return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+    }
+
+    function drawArrow(ray, color, ctx) {
+      drawRay(ray, color, ctx)
+
+      //Draw the side arrows
+      let direction = ray.direction();
+      let angle = ray.angle();
+      let tip1Angle = angle + Math.PI / 2 + Math.PI / 3;
+      let tip2Angle = angle - Math.PI / 2 - Math.PI / 3;
+
+      let tip1Ray = Ray.fromAngle(ray.two, tip1Angle);
+      let tip2Ray = Ray.fromAngle(ray.two, tip2Angle);
+      drawRay(tip1Ray, color, ctx);
+      drawRay(tip2Ray, color, ctx);
+    }
+
+    function drawRay(ray, color, ctx) {
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(ray.one.x, ray.one.y);
+      ctx.lineTo(ray.two.x, ray.two.y)
+      ctx.stroke()
+
     }
 
     function customDraw(ctx) {
+      //Draw the segments
       for (let segment of app.segments) {
         ctx.strokeStyle = "black";
         ctx.beginPath();
@@ -137,46 +201,69 @@
         ctx.stroke()
       }
 
+      //Get a shorter reference to the camera
       let c = app.camera;
 
+      //Draw the main line of the camera
       ctx.strokeStyle = `rgb(${c.ambient.r},${c.ambient.g},${c.ambient.b})`;
       ctx.beginPath();
       ctx.moveTo(c.x1, c.y1)
       ctx.lineTo(c.x2, c.y2)
       ctx.stroke()
 
+      //Figure out the angles for the frustum.
       let currentAngle = Math.atan2((c.y2 - c.y1), (c.x2 - c.x1));
       let fov = (+c.fov * Math.PI / 180);
       let upperAngle = fov + currentAngle;
       let lowerAngle = currentAngle - fov;
-      let l = length(+c.x1, +c.y1, +c.x2, +c.y2)
+      let adjacentLength = length(+c.x1, +c.y1, +c.x2, +c.y2)
+      let l = adjacentLength / Math.cos(fov);
 
+      //Draw the upper frustum
       ctx.beginPath()
       ctx.moveTo(+c.x1, +c.y1);
       ctx.lineTo(+c.x1 + Math.cos(upperAngle) * l, +c.y1 + +Math.sin(upperAngle) * l)
       ctx.stroke();
 
+      //Draw the lower frustum
       ctx.beginPath()
       ctx.moveTo(+c.x1, +c.y1);
       ctx.lineTo(+c.x1 + Math.cos(lowerAngle) * l, +c.y1 + Math.sin(lowerAngle) * l)
       ctx.stroke();
 
+      //Connect the upper and lower frustum
       ctx.beginPath()
       ctx.moveTo(+c.x1 + Math.cos(upperAngle) * l, +c.y1 + Math.sin(upperAngle) * l);
       ctx.lineTo(+c.x1 + Math.cos(lowerAngle) * l, +c.y1 + Math.sin(lowerAngle) * l)
       ctx.stroke();
 
 
+      //Draw the pixels
       let startX = -20;
       let startY = -0;
       let width = 10;
       let height = 10;
       for (let x = 0; x < c.pixels; x++) {
-
-
         ctx.fillStyle = `rgb(${c.background.r},${c.background.g},${c.background.b})`
-        ctx.fillRect(startX, startY + height * x,width, height);
+        ctx.fillRect(startX, startY + height * x, width, height);
       }
+
+      //Draw the pixel locations on the camera
+      for (let pixel of pixelLocations) {
+        ctx.fillStyle = "red"
+        ctx.beginPath();
+        ctx.arc(pixel.x, pixel.y, .5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      //Draw the rays
+      for (let ray of rays) {
+        //Draw the main ray
+        drawArrow(ray, "blue", ctx);
+
+      }
+
+
 
 
     }
@@ -188,8 +275,8 @@
         camera: {
           pixels: 3,
           fov: 45,
-          x1: 0, y1: 0,
-          x2: 10, y2: 0,
+          x1: 0, y1: -1,
+          x2: 10, y2: 2,
           ambient: { r: 255, g: 100, b: 0 },
           background: { r: 255, g: 100, b: 0 },
 
