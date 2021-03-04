@@ -1,0 +1,113 @@
+<html>
+
+<head>
+  <title>2D Ray Tracer</title>
+  <link href='https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Material+Icons' rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+  <link href="https://cdn.jsdelivr.net/npm/@mdi/font@5.x/css/materialdesignicons.min.css" rel="stylesheet">
+</head>
+
+<body>
+  <div id="app">
+    <v-app id="inspire">
+      <v-navigation-drawer v-model="drawer" app class="pt-4" color="grey lighten-3">
+        <v-container>
+          <v-row>
+            <v-col>
+              <div>Segments</div>
+              <div><v-btn @click="addSegment">Add</v-btn></div>
+            </v-col>
+          </v-row>
+          <v-col cols=12 v-for="(segment, index) in segments" :key="index">
+            <v-card>
+              <v-card-title>
+                Segment
+              </v-card-title>
+              <v-card-text>
+                <v-container>
+                  <v-row>
+                    <v-col>
+                      <v-text-field v-model="segment.x1"></v-text-field>
+                    </v-col>
+                    <v-col>
+                      <v-text-field v-model="segment.y1"></v-text-field>
+                    </v-col>
+                  </v-row>
+                  <v-row>
+                    <v-col>
+                      <v-text-field v-model="segment.x2"></v-text-field>
+                    </v-col>
+                    <v-col>
+                      <v-text-field v-model="segment.y2"></v-text-field>
+                    </v-col>
+                  </v-row>
+                </v-container>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          </v-row>
+        </v-container>
+
+      </v-navigation-drawer>
+      <v-app-bar app>
+        <v-app-bar-nav-icon @click="drawer = !drawer"></v-app-bar-nav-icon>
+
+        <v-toolbar-title>2D Ray Tracer</v-toolbar-title>
+      </v-app-bar>
+
+      <v-main id="main">
+        <!--  -->
+      </v-main>
+    </v-app>
+  </div>
+  <script src='https://code.jquery.com/jquery-3.2.1.min.js'></script>
+  <script src='https://unpkg.com/vue'></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js'></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.js"></script>
+  <script>
+    function customUpdate() {
+
+
+    }
+
+    function customDraw(ctx) {
+      for (let segment of app.segments) {
+        ctx.strokeStyle = "black";
+        ctx.beginPath();
+        ctx.moveTo(segment.x1, segment.y1)
+        ctx.lineTo(segment.x2, segment.y2)
+        ctx.stroke()
+      }
+    }
+
+    const app = new Vue({
+      el: '#app',
+      vuetify: new Vuetify(),
+      data: {
+        camera:{
+
+        },
+        drawer: true,
+        segments: [{ x1: 0, y1: 0, x2: 10, y2: 10 }],
+        rows: [
+          {
+            name: "One"
+          },
+          {
+            name: "Two"
+          }
+        ],
+      },
+      methods: {
+        addSegment(){
+          this.segments.push({x1:0, y1:0, x2:10, y2:10})
+        }
+      },
+    });
+  </script>
+  <script src="./canvas.js"></script>
+
+</body>
+
+</html>
