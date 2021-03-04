@@ -15,8 +15,61 @@
         <v-container>
           <v-row>
             <v-col>
+              <v-card>
+                <v-card-title>
+                  Camera
+                </v-card-title>
+                <v-card-text>
+                  <v-container>
+                    <v-row>
+                      <v-col>
+                        <v-text-field v-model="camera.pixels" label="pixels"></v-text-field>
+                      </v-col>
+                    </v-row>
+                    <v-row>
+
+                      <v-col>
+                        <v-slider v-model="camera.fov" :min="10" :max="60" label="fov"></v-slider>
+                      </v-col>
+
+                    </v-row>
+                    <v-row>
+                      <v-col>
+                        <v-text-field v-model="camera.x1" label="x1"></v-text-field>
+                      </v-col>
+                      <v-col>
+                        <v-text-field v-model="camera.y1" label="y1"></v-text-field>
+                      </v-col>
+                    </v-row>
+                    <v-row>
+                      <v-col>
+                        <v-text-field v-model="camera.x2" label="x2"></v-text-field>
+                      </v-col>
+                      <v-col>
+                        <v-text-field v-model="camera.y2" label="y2"></v-text-field>
+                      </v-col>
+                    </v-row>
+                    <v-row>
+                      <v-col>
+                        <v-color-picker hide-canvas v-model="camera.ambient"></v-color-picker>
+                      </v-col>
+                    </v-row>
+                    <v-row>
+                      <v-col>
+                        <v-color-picker hide-canvas v-model="camera.background"></v-color-picker>
+                      </v-col>
+                    </v-row>
+                  </v-container>
+                </v-card-text>
+              </v-card>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
               <div>Segments</div>
-              <div><v-btn @click="addSegment">Add</v-btn></div>
+              <div>
+                <v-btn @click="addSegment">Add</v-btn>
+              </div>
             </v-col>
           </v-row>
           <v-col cols=12 v-for="(segment, index) in segments" :key="index">
@@ -28,18 +81,18 @@
                 <v-container>
                   <v-row>
                     <v-col>
-                      <v-text-field v-model="segment.x1"></v-text-field>
+                      <v-text-field v-model="segment.x1" label="x1"></v-text-field>
                     </v-col>
                     <v-col>
-                      <v-text-field v-model="segment.y1"></v-text-field>
+                      <v-text-field v-model="segment.y1" label="y2"></v-text-field>
                     </v-col>
                   </v-row>
                   <v-row>
                     <v-col>
-                      <v-text-field v-model="segment.x2"></v-text-field>
+                      <v-text-field v-model="segment.x2" label="x2"></v-text-field>
                     </v-col>
                     <v-col>
-                      <v-text-field v-model="segment.y2"></v-text-field>
+                      <v-text-field v-model="segment.y2" label="y2"></v-text-field>
                     </v-col>
                   </v-row>
                 </v-container>
@@ -71,6 +124,10 @@
 
     }
 
+    function length(x1, y1, x2, y2) {
+      return Math.sqrt((x1 - x2) ** 2, (y1 - y2) ** 2)
+    }
+
     function customDraw(ctx) {
       for (let segment of app.segments) {
         ctx.strokeStyle = "black";
@@ -79,17 +136,66 @@
         ctx.lineTo(segment.x2, segment.y2)
         ctx.stroke()
       }
+
+      let c = app.camera;
+
+      ctx.strokeStyle = `rgb(${c.ambient.r},${c.ambient.g},${c.ambient.b})`;
+      ctx.beginPath();
+      ctx.moveTo(c.x1, c.y1)
+      ctx.lineTo(c.x2, c.y2)
+      ctx.stroke()
+
+      let currentAngle = Math.atan2((c.y2 - c.y1), (c.x2 - c.x1));
+      let fov = (+c.fov * Math.PI / 180);
+      let upperAngle = fov + currentAngle;
+      let lowerAngle = currentAngle - fov;
+      let l = length(+c.x1, +c.y1, +c.x2, +c.y2)
+
+      ctx.beginPath()
+      ctx.moveTo(+c.x1, +c.y1);
+      ctx.lineTo(+c.x1 + Math.cos(upperAngle) * l, +c.y1 + +Math.sin(upperAngle) * l)
+      ctx.stroke();
+
+      ctx.beginPath()
+      ctx.moveTo(+c.x1, +c.y1);
+      ctx.lineTo(+c.x1 + Math.cos(lowerAngle) * l, +c.y1 + Math.sin(lowerAngle) * l)
+      ctx.stroke();
+
+      ctx.beginPath()
+      ctx.moveTo(+c.x1 + Math.cos(upperAngle) * l, +c.y1 + Math.sin(upperAngle) * l);
+      ctx.lineTo(+c.x1 + Math.cos(lowerAngle) * l, +c.y1 + Math.sin(lowerAngle) * l)
+      ctx.stroke();
+
+
+      let startX = -20;
+      let startY = -0;
+      let width = 10;
+      let height = 10;
+      for (let x = 0; x < c.pixels; x++) {
+
+
+        ctx.fillStyle = `rgb(${c.background.r},${c.background.g},${c.background.b})`
+        ctx.fillRect(startX, startY + height * x,width, height);
+      }
+
+
     }
 
     const app = new Vue({
       el: '#app',
       vuetify: new Vuetify(),
       data: {
-        camera:{
+        camera: {
+          pixels: 3,
+          fov: 45,
+          x1: 0, y1: 0,
+          x2: 10, y2: 0,
+          ambient: { r: 255, g: 100, b: 0 },
+          background: { r: 255, g: 100, b: 0 },
 
         },
         drawer: true,
-        segments: [{ x1: 0, y1: 0, x2: 10, y2: 10 }],
+        segments: [{ x1: 15, y1: -5, x2: 15, y2: 10, color: "red" }],
         rows: [
           {
             name: "One"
@@ -100,8 +206,8 @@
         ],
       },
       methods: {
-        addSegment(){
-          this.segments.push({x1:0, y1:0, x2:10, y2:10})
+        addSegment() {
+          this.segments.push({ x1: 0, y1: 0, x2: 10, y2: 10 })
         }
       },
     });

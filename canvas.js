@@ -252,7 +252,6 @@ function drawCanvas() {
 }
 
 function mouseMove(e) {
-  console.log("move")
   let currentMouseX = e.clientX;
   let currentMouseY = e.clientY;
 
@@ -328,7 +327,7 @@ function keyup(e) {
 }
 
 function mouseWheel(e) {
-  console.log("wheel")
+  // console.log("wheel")
 
   //Figure out the current world space coordinate
   let x = e.clientX - (width / 2 - cameraCenterX);
