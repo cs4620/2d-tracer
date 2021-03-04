@@ -129,16 +129,19 @@
       static scale = (vector, scale) => new Vector2(vector.x * scale, vector.y * scale)
       static add = (one, two) => new Vector2(one.x + two.x, one.y + two.y)
       static subtract = (one, two) => this.add(one, this.scale(two, -1))
+      static orthogonal = vector => new Vector2(vector.y, -vector.x)
+      static dot = (one, two)=>one.x*two.x + one.y*two.y
     };
 
     class Ray {
       one; two
       constructor(one, two) { this.one = one; this.two = two }
       difference = () => Vector2.subtract(this.two, this.one)
+      length = () => this.difference().length();
       direction = () => this.difference().normalize()
       angle = () => Math.atan2(this.difference().y, this.difference().x)
       static fromAngle = (one, angle) => new Ray(one, new Vector2(one.x + Math.cos(angle), one.y + Math.sin(angle)))
-
+      static scale = (ray, s) => new Ray(ray.one, Vector2.add(ray.one, Vector2.scale(ray.direction(), s)))
     }
 
     function customUpdate() {
@@ -159,8 +162,57 @@
         let point = Vector2.add(top, Vector2.scale(orthogonal, -1 * delta * (i + 1)))
         pixelLocations.push(point);
         let ray = new Ray(new Vector2(c.x1, c.y1), point);
-        rays.push(ray);
+        //rays.push(ray);
+        let normalRay = Ray.fromAngle(ray.one, ray.angle());
+        //rays.push(normalRay);
+        let tracedRay = trace(normalRay);
+        rays.push(tracedRay.ray);
+        if(tracedRay.closest){
+          c.pixelColors[i] = `rgb(100, 100, 100)`;
+        }
+        else{
+          c.pixelColors[i] = `rgb(0, 0, 0)`;
+        }
       }
+    }
+
+    function V2(x, y) { return new Vector2(x, y) }
+    function R(one, two) { return new Ray(one, two) }
+
+    function distance(ray, s) {
+      let start = V2(s.x1, s.y1);
+      let end = V2(s.x2, s.y2);
+      let segmentRay = R(start, end);
+      let segmentTangent = segmentRay.direction();
+      let segmentNormal = Vector2.orthogonal(segmentTangent);
+      let A = segmentNormal.x;
+      let B = segmentNormal.y;
+      let C = -(A * s.x1 + B * s.y1);
+
+      let numerator = -C - ray.one.x * A - ray.one.y * B;
+      let denominator = ray.direction().x * A + ray.direction().y * B;
+      let d = numerator / denominator;
+      let collisionPoint = Ray.scale(ray, d).two;
+      let segmentLength = segmentRay.length();
+      let newRay = R(start, collisionPoint)
+      if (newRay.length() < segmentLength && Vector2.dot(newRay.direction(), segmentTangent) > 0)
+        return d;
+      else
+        return 30;
+
+    }
+
+    function trace(ray) {
+      let min = 30;
+      let closest = null;
+      for (let segment of app.segments) {
+        let d = distance(ray, segment);
+        if (d > 0 && d < min) {
+          min = d;
+          closest = segment;
+        }
+      }
+      return {ray:Ray.scale(ray, min), closest};
     }
 
     function length(x1, y1, x2, y2) {
@@ -244,7 +296,8 @@
       let width = 10;
       let height = 10;
       for (let x = 0; x < c.pixels; x++) {
-        ctx.fillStyle = `rgb(${c.background.r},${c.background.g},${c.background.b})`
+        let pixelColor = c.pixelColors[x];
+        ctx.fillStyle = pixelColor;
         ctx.fillRect(startX, startY + height * x, width, height);
       }
 
@@ -279,6 +332,7 @@
           x2: 10, y2: 2,
           ambient: { r: 255, g: 100, b: 0 },
           background: { r: 255, g: 100, b: 0 },
+          pixelColors:[],
 
         },
         drawer: true,
